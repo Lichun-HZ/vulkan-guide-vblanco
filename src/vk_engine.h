@@ -3,9 +3,11 @@
 
 #pragma once
 
+#include <imgui_impl_vulkan.h>
 #include <vk_types.h>
 
 #include "vk_descriptors.h"
+#include "vk_initializers.h"
 
 // We will have the deletion queue in multiple places, for multiple lifetimes of objects.
 // One of them is on the engine class itself, and will be flushed when the engine gets destroyed.
@@ -57,6 +59,12 @@ public:
 
 	VkPipeline					_gradientPipeline;
 	VkPipelineLayout			_gradientPipelineLayout;
+
+	// immediate submit structures
+	VkFence						_immFence;
+	VkCommandBuffer				_immCommandBuffer;
+	VkCommandPool				_immCommandPool;
+
 	
 	FrameData& get_current_frame() { return _frames[_frameNumber % FRAME_OVERLAP];}
 	
@@ -80,7 +88,8 @@ public:
 
 	//run main loop
 	void run();
-
+	
+	void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function);
 private:
 	void init_vulkan();
 	void init_swapchain();
@@ -89,9 +98,13 @@ private:
 	void init_descriptors();
 	void init_pipelines();
 	void init_background_pipelines();
+	void init_imgui();
 	
 	void create_swapchain(uint32_t width, uint32_t height);
 	void destroy_swapchain();
 
 	void draw_background(VkCommandBuffer cmd);
+	void draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView);
 };
+
+
