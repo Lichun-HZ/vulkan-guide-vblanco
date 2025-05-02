@@ -5,6 +5,8 @@
 
 #include <vk_types.h>
 
+#include "vk_descriptors.h"
+
 // We will have the deletion queue in multiple places, for multiple lifetimes of objects.
 // One of them is on the engine class itself, and will be flushed when the engine gets destroyed.
 // Global objects go into that one. We will also store one deletion queue for each frame in flight,
@@ -49,6 +51,13 @@ public:
 	AllocatedImage				_drawImage;
 	VkExtent2D					_drawExtent;
 	
+	DescriptorAllocator			globalDescriptorAllocator;
+	VkDescriptorSet				_drawImageDescriptors;
+	VkDescriptorSetLayout		_drawImageDescriptorLayout;
+
+	VkPipeline					_gradientPipeline;
+	VkPipelineLayout			_gradientPipelineLayout;
+	
 	FrameData& get_current_frame() { return _frames[_frameNumber % FRAME_OVERLAP];}
 	
 	bool _isInitialized{ false };
@@ -77,6 +86,9 @@ private:
 	void init_swapchain();
 	void init_commands();
 	void init_sync_structures();
+	void init_descriptors();
+	void init_pipelines();
+	void init_background_pipelines();
 	
 	void create_swapchain(uint32_t width, uint32_t height);
 	void destroy_swapchain();

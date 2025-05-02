@@ -1,0 +1,1 @@
+glslangValidator.exe -V gradient.comp -o gradient.comp.spv
