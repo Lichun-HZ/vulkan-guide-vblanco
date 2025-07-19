@@ -14,6 +14,13 @@
 // Global objects go into that one. We will also store one deletion queue for each frame in flight,
 // which will allow us to delete objects next frame after they are used.
 
+struct ComputePushConstants {
+	glm::vec4 data1;
+	glm::vec4 data2;
+	glm::vec4 data3;
+	glm::vec4 data4;
+};
+
 struct FrameData
 {
 	VkCommandPool	command_pool;
@@ -23,6 +30,15 @@ struct FrameData
 	VkFence			_renderFence;
 
 	DeletionQueue _deletionQueue;
+};
+
+struct ComputeEffect {
+	const char* name;
+
+	VkPipeline pipeline;
+	VkPipelineLayout layout;
+
+	ComputePushConstants data;
 };
 
 constexpr unsigned int FRAME_OVERLAP = 2;
@@ -72,6 +88,8 @@ public:
 	int _frameNumber {0};
 	bool stop_rendering{ false };
 	VkExtent2D _windowExtent{ 1700 , 900 };
+	std::vector<ComputeEffect> backgroundEffects;
+	int currentBackgroundEffect{0};
 
 	struct SDL_Window* _window{ nullptr };
 
