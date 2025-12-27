@@ -80,7 +80,17 @@ public:
 	VkFence						_immFence;
 	VkCommandBuffer				_immCommandBuffer;
 	VkCommandPool				_immCommandPool;
+	
+	VkPipelineLayout			_trianglePipelineLayout;
+	VkPipeline					_trianglePipeline;
+	
+	VkPipelineLayout			_meshPipelineLayout;
+	VkPipeline					_meshPipeline;
+	GPUMeshBuffers				_rectangle;
 
+	void init_triangle_pipeline();
+	void init_mesh_pipeline();
+	void init_default_data();
 	
 	FrameData& get_current_frame() { return _frames[_frameNumber % FRAME_OVERLAP];}
 	
@@ -108,6 +118,10 @@ public:
 	void run();
 	
 	void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function);
+	
+	AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
+	void destroy_buffer(const AllocatedBuffer& buffer);
+	GPUMeshBuffers uploadMesh(std::span<uint32_t> indices, std::span<Vertex> vertices);
 private:
 	void init_vulkan();
 	void init_swapchain();
@@ -120,6 +134,8 @@ private:
 	
 	void create_swapchain(uint32_t width, uint32_t height);
 	void destroy_swapchain();
+	
+	void draw_geometry(VkCommandBuffer cmd);
 
 	void draw_background(VkCommandBuffer cmd);
 	void draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView);
