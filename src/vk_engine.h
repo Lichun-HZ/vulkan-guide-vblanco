@@ -8,6 +8,7 @@
 
 #include "vk_descriptors.h"
 #include "vk_initializers.h"
+#include "vk_loader.h"
 
 // We will have the deletion queue in multiple places, for multiple lifetimes of objects.
 // One of them is on the engine class itself, and will be flushed when the engine gets destroyed.
@@ -67,6 +68,7 @@ public:
 
 	//draw resources
 	AllocatedImage				_drawImage;
+	AllocatedImage				_depthImage;
 	VkExtent2D					_drawExtent;
 	
 	DescriptorAllocator			globalDescriptorAllocator;
@@ -88,6 +90,8 @@ public:
 	VkPipeline					_meshPipeline;
 	GPUMeshBuffers				_rectangle;
 
+	std::vector<std::shared_ptr<MeshAsset>> _testMeshes;
+	
 	void init_triangle_pipeline();
 	void init_mesh_pipeline();
 	void init_default_data();
