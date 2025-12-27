@@ -38,7 +38,7 @@ void VulkanEngine::init()
     // We initialize SDL and create a window with it.
     SDL_Init(SDL_INIT_VIDEO);
 
-    SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_VULKAN);
+    SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
 
     _window = SDL_CreateWindow(
         "Vulkan Engine",
@@ -119,8 +119,23 @@ void VulkanEngine::draw()
 
     // request image from the swapchain
     uint32_t swapchainImageIndex;
-    VK_CHECK(vkAcquireNextImageKHR(_device, _swapchain, 1000000000, get_current_frame()._swapchainSemaphore,
-        nullptr, &swapchainImageIndex));
+    VkResult e = vkAcquireNextImageKHR(_device, _swapchain, 1000000000, get_current_frame()._swapchainSemaphore,
+        nullptr, &swapchainImageIndex);
+    
+    /*
+    * VK_ERROR_OUT_OF_DATE_KHR: The swap chain has become incompatible with the surface and can no longer be used for rendering. 
+    * Usually happens after a window resize.
+    * VK_SUBOPTIMAL_KHR: The swap chain can still be used to successfully present to the surface, 
+    * but the surface properties are no longer matched exactly.
+    */
+    // 窗口大小发生变化
+    if (e == VK_ERROR_OUT_OF_DATE_KHR) {
+        _resize_requested = true;       
+        return ;
+    } else if (e != VK_SUCCESS && e != VK_SUBOPTIMAL_KHR) {
+        fmt::println("failed to acquire swap chain image!");
+        abort();
+    }
 
     //naming it cmd for shorter writing
     VkCommandBuffer cmd = get_current_frame()._mainCommandBuffer;
@@ -135,8 +150,8 @@ void VulkanEngine::draw()
     //start the command buffer recording
     VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
 
-    _drawExtent.width = _drawImage.imageExtent.width;
-    _drawExtent.height = _drawImage.imageExtent.height;
+    _drawExtent.height = std::min(_swapChainExtent.height, _drawImage.imageExtent.height) * _renderScale;
+    _drawExtent.width  = std::min(_swapChainExtent.width, _drawImage.imageExtent.width) * _renderScale;
 
     // transition our main draw image into general layout so we can write into it
     // we will overwrite it all so we dont care about what was the older layout
@@ -148,6 +163,7 @@ void VulkanEngine::draw()
     vkutil::transition_image(cmd, _depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
     
     draw_geometry(cmd);
+    //draw_imgui(cmd,  _drawImage.imageView); // 如果放在这里，就是将ui也渲染在场景color上
 
     //transition the draw image and the swapchain image into their correct transfer layouts
     vkutil::transition_image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
@@ -159,6 +175,7 @@ void VulkanEngine::draw()
     // set swapchain image layout to Attachment Optimal so we can draw it
     vkutil::transition_image(cmd, _swapChainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
+    // ui是直接渲染到swapchain上的。
     //draw imgui into the swapchain image
     draw_imgui(cmd,  _swapChainImageViews[swapchainImageIndex]);
     
@@ -201,7 +218,17 @@ void VulkanEngine::draw()
         .pResults = nullptr 
     };
 
-    VK_CHECK(vkQueuePresentKHR(_graphicsQueue, &presentInfo));
+    VkResult presentResult = vkQueuePresentKHR(_graphicsQueue, &presentInfo);
+    if (presentResult == VK_ERROR_OUT_OF_DATE_KHR) {
+        _resize_requested = true;
+    }
+    
+    if (presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR) {
+        _resize_requested = true;       
+    } else if (e != VK_SUCCESS) {
+        fmt::println("failed to present swap chain image!");
+        abort();
+    }
 
     //increase the number of frames drawn
     _frameNumber++;
@@ -239,6 +266,10 @@ void VulkanEngine::run()
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             continue;
         }
+        
+        if (_resize_requested) {
+            resize_swapchain();
+        }
 
         // imgui new frame
         ImGui_ImplVulkan_NewFrame();
@@ -249,6 +280,8 @@ void VulkanEngine::run()
         //ImGui::ShowDemoWindow();
         if (ImGui::Begin("background")) {
 			
+            ImGui::SliderFloat("Render Scale",&_renderScale, 0.3f, 1.f);
+            
             ComputeEffect& selected = backgroundEffects[currentBackgroundEffect];
 		
             ImGui::Text("Selected effect: ", selected.name);
@@ -263,7 +296,7 @@ void VulkanEngine::run()
         ImGui::End();
 
         //make imgui calculate internal draw structures
-        ImGui::Render();
+        ImGui::Render();  // 这里只是imgui内部组织渲染数据，draw_imgui才是真正渲染ui到屏幕上。
 
         //our draw function
         draw();
@@ -978,6 +1011,22 @@ void VulkanEngine::destroy_swapchain()
     }
 }
 
+void VulkanEngine::resize_swapchain()
+{
+    vkDeviceWaitIdle(_device);
+
+    destroy_swapchain();
+
+    int w, h;
+    SDL_GetWindowSize(_window, &w, &h);
+    _windowExtent.width = w;
+    _windowExtent.height = h;
+
+    create_swapchain(_windowExtent.width, _windowExtent.height);
+
+    _resize_requested = false;
+}
+
 void VulkanEngine::draw_background(VkCommandBuffer cmd)
 {
     /*
@@ -1001,8 +1050,9 @@ void VulkanEngine::draw_background(VkCommandBuffer cmd)
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, _gradientPipelineLayout, 0, 1, &_drawImageDescriptors, 0, nullptr);
 
     ComputePushConstants pc;
-    pc.data1 = glm::vec4(1, 0, 0, 1);
-    pc.data2 = glm::vec4(0, 0, 1, 1);
+    pc.data1 = backgroundEffects[currentBackgroundEffect].data.data1; //glm::vec4(1, 0, 0, 1);
+    pc.data2 = backgroundEffects[currentBackgroundEffect].data.data2; //glm::vec4(0, 0, 1, 1);
+    pc.data3 = glm::vec4(0, 0, _drawExtent.width, _drawExtent.height);
 
     vkCmdPushConstants(cmd, _gradientPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(ComputePushConstants), &pc);
 

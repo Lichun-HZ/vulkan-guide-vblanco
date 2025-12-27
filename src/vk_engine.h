@@ -70,6 +70,8 @@ public:
 	AllocatedImage				_drawImage;
 	AllocatedImage				_depthImage;
 	VkExtent2D					_drawExtent;
+	bool						_resize_requested { false };
+	float						_renderScale {1.f};
 	
 	DescriptorAllocator			globalDescriptorAllocator;
 	VkDescriptorSet				_drawImageDescriptors;
@@ -138,7 +140,8 @@ private:
 	
 	void create_swapchain(uint32_t width, uint32_t height);
 	void destroy_swapchain();
-	
+	void resize_swapchain();
+
 	void draw_geometry(VkCommandBuffer cmd);
 
 	void draw_background(VkCommandBuffer cmd);
