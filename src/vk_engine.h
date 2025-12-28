@@ -22,13 +22,16 @@ struct ComputePushConstants {
 	glm::vec4 data4;
 };
 
+// 一帧拥有的资源
 struct FrameData
 {
-	VkCommandPool	command_pool;
+	VkCommandPool	_command_pool;
 	VkCommandBuffer _mainCommandBuffer;
 
 	VkSemaphore		_swapchainSemaphore, _renderSemaphore;
 	VkFence			_renderFence;
+	
+	DescriptorAllocatorGrowable _frameDescriptors;
 
 	DeletionQueue _deletionQueue;
 };
@@ -93,6 +96,10 @@ public:
 	GPUMeshBuffers				_rectangle;
 
 	std::vector<std::shared_ptr<MeshAsset>> _testMeshes;
+	
+	// scene data
+	GPUSceneData		  _sceneData;
+	VkDescriptorSetLayout _gpuSceneDataDescriptorLayout;
 	
 	void init_triangle_pipeline();
 	void init_mesh_pipeline();
