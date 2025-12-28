@@ -22,13 +22,16 @@ struct ComputePushConstants {
 	glm::vec4 data4;
 };
 
+// 一帧拥有的资源
 struct FrameData
 {
-	VkCommandPool	command_pool;
+	VkCommandPool	_command_pool;
 	VkCommandBuffer _mainCommandBuffer;
 
 	VkSemaphore		_swapchainSemaphore, _renderSemaphore;
 	VkFence			_renderFence;
+	
+	DescriptorAllocatorGrowable _frameDescriptors;
 
 	DeletionQueue _deletionQueue;
 };
@@ -73,6 +76,15 @@ public:
 	bool						_resize_requested { false };
 	float						_renderScale {1.f};
 	
+	// default resources
+	AllocatedImage _whiteImage;
+	AllocatedImage _blackImage;
+	AllocatedImage _greyImage;
+	AllocatedImage _errorCheckerboardImage;
+
+	VkSampler      _defaultSamplerLinear;
+	VkSampler      _defaultSamplerNearest;
+	
 	DescriptorAllocator			globalDescriptorAllocator;
 	VkDescriptorSet				_drawImageDescriptors;
 	VkDescriptorSetLayout		_drawImageDescriptorLayout;
@@ -93,6 +105,11 @@ public:
 	GPUMeshBuffers				_rectangle;
 
 	std::vector<std::shared_ptr<MeshAsset>> _testMeshes;
+	
+	// scene data
+	GPUSceneData		  _sceneData;
+	VkDescriptorSetLayout _gpuSceneDataDescriptorLayout;
+	VkDescriptorSetLayout _singleImageDescriptorLayout;
 	
 	void init_triangle_pipeline();
 	void init_mesh_pipeline();
@@ -127,6 +144,10 @@ public:
 	
 	AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
 	void destroy_buffer(const AllocatedBuffer& buffer);
+	AllocatedImage create_image(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
+	AllocatedImage create_image(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
+	void destroy_image(const AllocatedImage& img);
+	
 	GPUMeshBuffers uploadMesh(std::span<uint32_t> indices, std::span<Vertex> vertices);
 private:
 	void init_vulkan();
