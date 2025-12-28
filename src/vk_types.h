@@ -97,3 +97,83 @@ struct GPUSceneData {
     glm::vec4 sunlightDirection; // w for sun power
     glm::vec4 sunlightColor;
 };
+
+enum class MaterialPass :uint8_t {
+    MainColor,
+    Transparent,
+    Other
+};
+
+// 材质管线
+struct MaterialPipeline {
+    VkPipeline pipeline;
+    VkPipelineLayout layout;
+};
+
+// 材质实列
+struct MaterialInstance {
+    MaterialPipeline* pipeline;
+    VkDescriptorSet   materialSet; // 绑定的材质参数
+    MaterialPass      passType;
+};
+
+// 渲染对象
+struct RenderObject {
+    uint32_t indexCount;
+    uint32_t firstIndex;
+    VkBuffer indexBuffer;
+    
+    MaterialInstance* material;
+
+    glm::mat4 transform;
+    VkDeviceAddress vertexBufferAddress;
+};
+
+// 渲染上下文
+struct DrawContext {
+    std::vector<RenderObject> OpaqueSurfaces; // 不透明渲染队列
+};
+
+// base class for a renderable dynamic object
+class IRenderable {
+    // 提取IRenderable的渲染数据组装成一个RenderObject，添加到DrawContext中。
+    virtual void Draw(const glm::mat4& topMatrix, DrawContext& ctx) = 0;
+};
+
+// implementation of a drawable scene node.
+// the scene node can hold children and will also keep a transform to propagate
+// to them
+struct Node : public IRenderable {
+
+    // parent pointer must be a weak pointer to avoid circular dependencies
+    std::weak_ptr<Node> parent;
+    std::vector<std::shared_ptr<Node>> children;
+
+    glm::mat4 localTransform;
+    glm::mat4 worldTransform;
+
+    void refreshTransform(const glm::mat4& parentMatrix)
+    {
+        worldTransform = parentMatrix * localTransform;
+        for (auto c : children) {
+            c->refreshTransform(worldTransform);
+        }
+    }
+
+    virtual void Draw(const glm::mat4& topMatrix, DrawContext& ctx)
+    {
+        // draw children
+        for (auto& c : children) {
+            c->Draw(topMatrix, ctx);
+        }
+    }
+};
+
+struct MeshAsset;
+struct MeshNode : public Node {
+
+    std::shared_ptr<MeshAsset> mesh;
+
+    virtual void Draw(const glm::mat4& topMatrix, DrawContext& ctx) override;
+};
+
