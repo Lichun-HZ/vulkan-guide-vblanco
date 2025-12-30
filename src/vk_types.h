@@ -152,6 +152,7 @@ struct Node : public IRenderable {
     glm::mat4 localTransform;
     glm::mat4 worldTransform;
 
+    // top node用单位矩阵调用该函数，就会将这棵树上所有node的矩阵进行更新。
     void refreshTransform(const glm::mat4& parentMatrix)
     {
         worldTransform = parentMatrix * localTransform;

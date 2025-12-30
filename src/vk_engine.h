@@ -151,6 +151,8 @@ public:
 	std::unordered_map<std::string, std::shared_ptr<Node>> loadedNodes;
 	Camera mainCamera;
 	
+	std::unordered_map<std::string, std::shared_ptr<LoadedGLTF>> loadedScenes;
+	
 	void init_triangle_pipeline();
 	void init_mesh_pipeline();
 	void init_default_data();
