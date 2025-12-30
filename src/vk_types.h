@@ -131,7 +131,8 @@ struct RenderObject {
 
 // 渲染上下文
 struct DrawContext {
-    std::vector<RenderObject> OpaqueSurfaces; // 不透明渲染队列
+    std::vector<RenderObject> OpaqueSurfaces;      // 不透明渲染队列
+    std::vector<RenderObject> TransparentSurfaces; // 透明渲染队列
 };
 
 // base class for a renderable dynamic object

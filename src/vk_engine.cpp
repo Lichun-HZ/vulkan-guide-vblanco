@@ -513,7 +513,8 @@ void VulkanEngine::update_scene()
     projection[1][1] *= -1;
     
     mainDrawContext.OpaqueSurfaces.clear();
-
+    mainDrawContext.TransparentSurfaces.clear();
+    
     //loadedNodes["Suzanne"]->Draw(glm::mat4{1.f}, mainDrawContext);	
 
     _sceneData.view = view;
@@ -1511,19 +1512,27 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
     vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);
     */
     
-    for (const RenderObject& draw : mainDrawContext.OpaqueSurfaces) {
-        vkCmdBindPipeline(cmd,VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->pipeline);
-        vkCmdBindDescriptorSets(cmd,VK_PIPELINE_BIND_POINT_GRAPHICS,draw.material->pipeline->layout, 0,1, &globalDescriptor,0,nullptr );
-        vkCmdBindDescriptorSets(cmd,VK_PIPELINE_BIND_POINT_GRAPHICS,draw.material->pipeline->layout, 1,1, &draw.material->materialSet,0,nullptr );
+    auto draw = [&](const RenderObject& draw) {
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->pipeline);
+        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->layout, 0, 1, &globalDescriptor, 0, nullptr);
+        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->layout, 1, 1, &draw.material->materialSet, 0, nullptr);
 
-        vkCmdBindIndexBuffer(cmd, draw.indexBuffer,0,VK_INDEX_TYPE_UINT32);
+        vkCmdBindIndexBuffer(cmd, draw.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
         GPUDrawPushConstants pushConstants;
         pushConstants.vertexBuffer = draw.vertexBufferAddress;
         pushConstants.worldMatrix = draw.transform;
-        vkCmdPushConstants(cmd,draw.material->pipeline->layout ,VK_SHADER_STAGE_VERTEX_BIT,0, sizeof(GPUDrawPushConstants), &pushConstants);
+        vkCmdPushConstants(cmd, draw.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
 
-        vkCmdDrawIndexed(cmd,draw.indexCount,1,draw.firstIndex,0,0);
+        vkCmdDrawIndexed(cmd, draw.indexCount, 1, draw.firstIndex, 0, 0);
+    };
+
+    for (auto& r : mainDrawContext.OpaqueSurfaces) {
+        draw(r);
+    }
+
+    for (auto& r : mainDrawContext.TransparentSurfaces) {
+        draw(r);
     }
     
     vkCmdEndRendering(cmd);
