@@ -6,6 +6,7 @@
 #include <imgui_impl_vulkan.h>
 #include <vk_types.h>
 
+#include "camera.h"
 #include "vk_descriptors.h"
 #include "vk_initializers.h"
 #include "vk_loader.h"
@@ -148,6 +149,7 @@ public:
 	
 	DrawContext mainDrawContext;
 	std::unordered_map<std::string, std::shared_ptr<Node>> loadedNodes;
+	Camera mainCamera;
 	
 	void init_triangle_pipeline();
 	void init_mesh_pipeline();

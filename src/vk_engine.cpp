@@ -59,6 +59,11 @@ void VulkanEngine::init()
     
     // everything went fine
     _isInitialized = true;
+    
+    mainCamera.velocity = glm::vec3(0.f);
+    mainCamera.position = glm::vec3(0, 0, 5);
+    mainCamera.pitch = 0;
+    mainCamera.yaw = 0;
 }
 
 void VulkanEngine::cleanup()
@@ -261,6 +266,9 @@ void VulkanEngine::run()
                     stop_rendering = false;
                 }
             }
+            
+            // update camera input
+            mainCamera.processSDLEvent(e);
 
             //send SDL event to imgui for handling
             ImGui_ImplSDL2_ProcessEvent(&e);
@@ -287,6 +295,7 @@ void VulkanEngine::run()
         if (ImGui::Begin("background")) {
 			
             ImGui::SliderFloat("Render Scale",&_renderScale, 0.3f, 1.f);
+            ImGui::SliderFloat("Camera Move Speed", &mainCamera.moveSpeed, 0.1f, 10.f);
             
             ComputeEffect& selected = backgroundEffects[currentBackgroundEffect];
 		
@@ -485,18 +494,23 @@ GPUMeshBuffers VulkanEngine::uploadMesh(std::span<uint32_t> indices, std::span<V
 
 void VulkanEngine::update_scene()
 {
+    // update camera
+    mainCamera.update();
+    glm::mat4 view = mainCamera.getViewMatrix();
+    // camera projection
+    glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)_windowExtent.width / (float)_windowExtent.height, 10000.f, 0.1f);
+
+    // invert the Y direction on projection matrix so that we are more similar
+    // to opengl and gltf axis
+    projection[1][1] *= -1;
+    
     mainDrawContext.OpaqueSurfaces.clear();
 
     loadedNodes["Suzanne"]->Draw(glm::mat4{1.f}, mainDrawContext);	
 
-    _sceneData.view = glm::translate(glm::vec3{ 0,0,-5 });
-    // camera projection
-    _sceneData.proj = glm::perspective(glm::radians(70.f), (float)_windowExtent.width / (float)_windowExtent.height, 10000.f, 0.1f);
-
-    // invert the Y direction on projection matrix so that we are more similar
-    // to opengl and gltf axis
-    _sceneData.proj[1][1] *= -1;
-    _sceneData.viewproj = _sceneData.proj * _sceneData.view;
+    _sceneData.view = view;
+    _sceneData.proj = projection;
+    _sceneData.viewproj = projection * view; // glm matrix的顺序是左乘(Projection * View * Model) * Position
 
     //some default lighting parameters
     _sceneData.ambientColor = glm::vec4(.1f);
@@ -508,7 +522,8 @@ void VulkanEngine::update_scene()
         glm::mat4 scale = glm::scale(glm::vec3{0.2});
         glm::mat4 translation =  glm::translate(glm::vec3{x, 1, 0});
 
-        loadedNodes["Cube"]->Draw(translation * scale, mainDrawContext);
+        // 先Scale, 再Rotation, 最后Translate
+        loadedNodes["Cube"]->Draw(translation * scale, mainDrawContext); 
     }
 }
 
