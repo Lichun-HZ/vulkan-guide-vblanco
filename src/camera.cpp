@@ -24,10 +24,10 @@ void Camera::processSDLEvent(SDL_Event& e)
         if (e.key.keysym.sym == SDLK_d) { velocity.x = 0; }
     }
     
-    if (e.type == SDL_MOUSEBUTTONDOWN) {
+    if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_RIGHT) {
         mouseDown = true;
     }
-    else if (e.type == SDL_MOUSEBUTTONUP) {
+    else if (e.type == SDL_MOUSEBUTTONUP && e.button.button == SDL_BUTTON_RIGHT) {
         mouseDown = false;
     }
 
