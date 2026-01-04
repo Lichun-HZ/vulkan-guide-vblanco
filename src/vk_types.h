@@ -20,7 +20,6 @@
 #include <glm/mat4x4.hpp>
 #include <glm/vec4.hpp>
 
-
 #define VK_CHECK(x)                                                     \
     do {                                                                \
         VkResult err = x;                                               \
@@ -75,6 +74,12 @@ struct Vertex {
     glm::vec4 color;
 };
 
+struct Bounds {
+    glm::vec3 origin;
+    float sphereRadius;
+    glm::vec3 extents;
+};
+
 // holds the resources needed for a mesh
 struct GPUMeshBuffers {
 
@@ -125,6 +130,7 @@ struct RenderObject {
     
     MaterialInstance* material;
 
+    Bounds bounds;
     glm::mat4 transform;
     VkDeviceAddress vertexBufferAddress;
 };
