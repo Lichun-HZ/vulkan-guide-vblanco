@@ -46,6 +46,15 @@ struct ComputeEffect {
 	ComputePushConstants data;
 };
 
+// 统计引擎耗时，正常情况需要把bUseValidationLayers关掉
+struct EngineStats {
+	float frametime;
+	int   triangle_count;
+	int   drawcall_count;
+	float scene_update_time;
+	float mesh_draw_time;
+};
+
 class VulkanEngine;
 
 struct GLTFMetallic_Roughness {
@@ -150,6 +159,7 @@ public:
 	DrawContext mainDrawContext;
 	std::unordered_map<std::string, std::shared_ptr<Node>> loadedNodes;
 	Camera mainCamera;
+	EngineStats stats;
 	
 	std::unordered_map<std::string, std::shared_ptr<LoadedGLTF>> loadedScenes;
 	

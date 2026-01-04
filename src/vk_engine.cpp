@@ -260,6 +260,9 @@ void VulkanEngine::run()
 
     // main loop
     while (!bQuit) {
+        //begin clock
+        auto start = std::chrono::system_clock::now();
+        
         // Handle events on queue
         while (SDL_PollEvent(&e) != 0) {
             // close the window when user alt-f4s or clicks the X button
@@ -317,12 +320,28 @@ void VulkanEngine::run()
             ImGui::InputFloat4("data4",(float*)& selected.data.data4);
         }
         ImGui::End();
+        
+        ImGui::Begin("Stats");
+
+        ImGui::Text("frametime %f ms", stats.frametime);
+        ImGui::Text("draw time %f ms", stats.mesh_draw_time);
+        ImGui::Text("update time %f ms", stats.scene_update_time);
+        ImGui::Text("triangles %i", stats.triangle_count);
+        ImGui::Text("draws %i", stats.drawcall_count);
+        ImGui::End();
 
         //make imgui calculate internal draw structures
         ImGui::Render();  // 这里只是imgui内部组织渲染数据，draw_imgui才是真正渲染ui到屏幕上。
 
         //our draw function
         draw();
+        
+        //get clock again, compare with start clock
+        auto end = std::chrono::system_clock::now();
+     
+        //convert to microseconds (integer), and then come back to miliseconds
+        auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+        stats.frametime = elapsed.count() / 1000.f;
     }
 }
 
@@ -502,6 +521,9 @@ GPUMeshBuffers VulkanEngine::uploadMesh(std::span<uint32_t> indices, std::span<V
 
 void VulkanEngine::update_scene()
 {
+    //begin clock
+    auto start = std::chrono::system_clock::now();
+    
     // update camera
     mainCamera.update();
     glm::mat4 view = mainCamera.getViewMatrix();
@@ -536,6 +558,12 @@ void VulkanEngine::update_scene()
     }
     
     loadedScenes["structure"]->Draw(glm::mat4{ 1.f }, mainDrawContext);
+    
+    auto end = std::chrono::system_clock::now();
+
+    //convert to microseconds (integer), and then come back to miliseconds
+    auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+    stats.scene_update_time = elapsed.count() / 1000.f;
 }
 
 void VulkanEngine::init_vulkan()
@@ -1424,6 +1452,12 @@ void VulkanEngine::draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView)
 
 void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 {
+    //reset counters
+    stats.drawcall_count = 0;
+    stats.triangle_count = 0;
+    //begin clock
+    auto start = std::chrono::system_clock::now();
+    
     //{
         //allocate a new uniform buffer for the scene data
         AllocatedBuffer gpuSceneDataBuffer = create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
@@ -1525,6 +1559,10 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
         vkCmdPushConstants(cmd, draw.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
 
         vkCmdDrawIndexed(cmd, draw.indexCount, 1, draw.firstIndex, 0, 0);
+        
+        //add counters for triangles and draws
+        stats.drawcall_count++;
+        stats.triangle_count += draw.indexCount / 3; 
     };
 
     for (auto& r : mainDrawContext.OpaqueSurfaces) {
@@ -1536,4 +1574,10 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
     }
     
     vkCmdEndRendering(cmd);
+    
+    auto end = std::chrono::system_clock::now();
+
+    //convert to microseconds (integer), and then come back to miliseconds
+    auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+    stats.mesh_draw_time = elapsed.count() / 1000.f;
 }
